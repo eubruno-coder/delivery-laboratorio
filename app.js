@@ -87,7 +87,7 @@ async function start(){
  const {data:products,error:productError}=await db.from("products").select("id,name,price_cents").eq("establishment_id",store).eq("is_available",true).order("name");
  if(productError)throw productError;
  $("product").replaceChildren(...products.map(p=>{const option=el("option",p.name+" — "+money(p.price_cents));option.value=p.id;return option;}));
- await refresh();
+ await refresh();await loadDelivery();
  if(channel)await db.removeChannel(channel);
  channel=db.channel("orders-"+store).on("postgres_changes",{event:"*",schema:"public",table:"orders",filter:"establishment_id=eq."+store},()=>refresh()).subscribe(s=>{$("connection").textContent=s==="SUBSCRIBED"?"● Conectado":"Sincronizando";});
  clearInterval(poll);poll=setInterval(()=>{if(!document.hidden)refresh();},10000);
@@ -104,10 +104,10 @@ async function auth(mode){
 $("login").onclick=()=>auth("login");$("signup").onclick=()=>auth("signup");
 $("logout").onclick=async()=>{await db.auth.signOut();await start();say("Sessão encerrada.");};
 function tab(name){
- const panel=name==="panel";$("panelArea").classList.toggle("hide",!panel);$("sendArea").classList.toggle("hide",panel);
- $("tabPanel").classList.toggle("active",panel);$("tabSend").classList.toggle("active",!panel);if(panel)refresh();
+ const panel=name==="panel";$("panelArea").classList.toggle("hide",!panel);$("sendArea").classList.toggle("hide",name!=="send");$("deliveryArea").classList.toggle("hide",name!=="delivery");
+ $("tabPanel").classList.toggle("active",panel);$("tabSend").classList.toggle("active",name==="send");$("tabDelivery").classList.toggle("active",name==="delivery");if(panel)refresh();
 }
-$("tabPanel").onclick=()=>tab("panel");$("tabSend").onclick=()=>tab("send");
+$("tabPanel").onclick=()=>tab("panel");$("tabSend").onclick=()=>tab("send");$("tabDelivery").onclick=()=>tab("delivery");
 $("showCancelled").onchange=render;$("search").oninput=render;$("sort").onchange=render;$("reload").onclick=refresh;
 $("modalClose").onclick=()=>$("detailModal").classList.add("hide");
 $("detailModal").onclick=e=>{if(e.target===$("detailModal"))$("detailModal").classList.add("hide");};
@@ -117,5 +117,33 @@ $("submit").onclick=async()=>{
  try{const result=await api("submit",{establishment_id:store,client_request_id:crypto.randomUUID(),customer_name:$("customer").value,product_id:$("product").value,quantity:Number($("quantity").value)});
  say("Pedido registrado! ID: "+result.order_id);await refresh();tab("panel");
  }catch(e){say("Falha ao enviar pedido: "+e.message,true);}finally{btn.disabled=false;}
+};
+
+const toCents=id=>{const n=Number($(id).value);if(!Number.isFinite(n)||n<0||n>10000)throw Error("Informe um valor válido em "+id);return Math.round(n*100);};
+async function loadDelivery(){
+ if(!store)return;
+ const {data,error}=await db.from("delivery_settings").select("origin_label,base_fee_cents,per_km_cents,max_distance_m,enabled").eq("establishment_id",store).maybeSingle();
+ if(error){say("Configurações de entrega: "+error.message,true);return;}
+ if(!data)return;
+ $("originLabel").value=data.origin_label||"";$("baseFee").value=(data.base_fee_cents/100).toFixed(2);
+ $("perKmFee").value=(data.per_km_cents/100).toFixed(2);$("maxKm").value=(data.max_distance_m/1000).toFixed(1);$("deliveryEnabled").checked=data.enabled;
+}
+$("saveDelivery").onclick=async()=>{
+ const btn=$("saveDelivery");btn.disabled=true;
+ try{
+  const max=Number($("maxKm").value);if(!Number.isFinite(max)||max<0.1||max>200)throw Error("Distância máxima deve estar entre 0,1 e 200 km.");
+  const payload={establishment_id:store,origin_label:$("originLabel").value.trim(),base_fee_cents:toCents("baseFee"),per_km_cents:toCents("perKmFee"),max_distance_m:Math.round(max*1000),enabled:$("deliveryEnabled").checked,updated_at:new Date().toISOString()};
+  const {error}=await db.from("delivery_settings").upsert(payload,{onConflict:"establishment_id"});if(error)throw error;
+  say("Configuração de entrega salva nesta loja.");$("quoteResult").textContent="";
+ }catch(e){say("Falha ao salvar: "+e.message,true);}finally{btn.disabled=false;}
+};
+$("quoteDelivery").onclick=async()=>{
+ const result=$("quoteResult");result.textContent="Calculando…";
+ try{
+  const km=Number($("distanceKm").value);if(!Number.isFinite(km)||km<0||km>200)throw Error("Distância deve estar entre 0 e 200 km.");
+  const {data,error}=await db.rpc("delivery_fee_preview",{p_establishment_id:store,p_distance_m:Math.round(km*1000)});
+  if(error)throw error;const quote=data?.[0];if(!quote)throw Error("Salve as configurações primeiro.");
+  result.textContent=quote.within_range?"Taxa simulada: "+money(quote.fee_cents)+" ("+km+" km)":"Entrega indisponível: loja desabilitada ou distância fora do limite.";
+ }catch(e){result.textContent="Não foi possível calcular: "+e.message;}
 };
 start().catch(e=>say("Falha ao iniciar: "+e.message,true));
