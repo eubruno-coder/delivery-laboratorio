@@ -5,7 +5,9 @@ if(!key||!key.startsWith("sb_publishable_"))throw Error("Chave publishable neces
 localStorage.setItem("delivery_lab_publishable_key",key);
 const db=createClient(url,key);
 const $=id=>document.getElementById(id);
-let store=null,channel=null,poll=null;\nconst nextStatus={received:[["preparing","Iniciar preparo"],["cancelled","Cancelar"]],preparing:[["ready","Marcar pronto"],["cancelled","Cancelar"]],ready:[["completed","Entregue ao cliente"],["out_for_delivery","Saiu para entrega"]],out_for_delivery:[["completed","Concluir entrega"]]};\nconst labels={received:"Recebido",preparing:"Preparando",ready:"Pronto",out_for_delivery:"Saiu para entrega",completed:"Concluído",cancelled:"Cancelado"};
+let store=null,channel=null,poll=null;
+const nextStatus={received:[["preparing","Iniciar preparo"],["cancelled","Cancelar"]],preparing:[["ready","Marcar pronto"],["cancelled","Cancelar"]],ready:[["completed","Entregue ao cliente"],["out_for_delivery","Saiu para entrega"]],out_for_delivery:[["completed","Concluir entrega"]]};
+const labels={received:"Recebido",preparing:"Preparando",ready:"Pronto",out_for_delivery:"Saiu para entrega",completed:"Concluído",cancelled:"Cancelado"};
 const say=(message,bad=false)=>{const n=$("notice");n.textContent=message;n.className=bad?"error":"ok"};
 const money=n=>(n/100).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
 async function api(action,extra={}){
