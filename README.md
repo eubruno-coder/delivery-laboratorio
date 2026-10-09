@@ -40,3 +40,9 @@ Código-fonte original: branch `feature/pedidos-realtime-poc` do repositório `m
 - Realtime e sincronização de contingência a cada 10 segundos continuam ativos.
 - O checkout segue autenticado e limitado ao laboratório. Sem dados reais, pagamentos ou integração com o produto principal.
 - **Validação necessária:** após publicação do GitHub Pages, testar login, envio, colunas, transições, detalhes e sincronização entre dispositivos.
+
+## Painel V0.3 — cores operacionais
+- Recebidos: laranja com pulso suave contínuo e indicação NOVO; preparando: azul; prontos: verde; em entrega: roxo; finalizados: verde acinzentado; cancelados: vermelho.
+- Fundo, borda, texto e ações dos cards acompanham a paleta de cada etapa. Animação respeita a preferência de movimento reduzido do dispositivo.
+- Checkbox **Mostrar cancelados** exibe ou oculta a sexta coluna, sem apagar pedidos.
+- Homologação pendente: validar cores, movimento, alternância da coluna cancelados e transições em navegador real.
