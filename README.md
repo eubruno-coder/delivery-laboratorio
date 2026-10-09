@@ -55,3 +55,10 @@ Código-fonte original: branch `feature/pedidos-realtime-poc` do repositório `m
 - Nenhum rastreamento de entregadores ou clientes será implementado.
 - **Teste manual pendente:** entrar na conta, salvar valores, atualizar a página, confirmar persistência e testar distância dentro/fora do limite. Não utilizar dados pessoais reais.
 - Migração aplicada no projeto Supabase como `delivery_settings_and_internal_fee_preview_v04`. Exportar SQL e manter versionamento das migrações antes de produção.
+
+## V0.4 — pedido de entrega de teste
+- Na aba Enviar pedido de teste, selecionar Retirada ou Entrega (simulação).
+- Entrega usa distância fictícia informada pelo operador; a prévia consulta `delivery_fee_preview` e a gravação chama Edge Function `delivery-demo` ação `submit_delivery_test`, que executa RPC service-role-only `demo_submit_delivery`.
+- O servidor recalcula a taxa com os parâmetros da loja, salva `fulfillment_type='delivery'`, `delivery_fee_cents` e `total_cents` atomicamente, com idempotência.
+- Somente para laboratório autenticado. **Não reutilizar a distância do cliente para cobrança real**: ainda falta roteamento e validação do destino no backend.
+- Homologação manual pendente em navegador: habilitar loja, consultar taxa, enviar pedido, verificar total e status.
