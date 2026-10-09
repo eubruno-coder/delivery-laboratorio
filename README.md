@@ -15,7 +15,7 @@ Em GitHub → Settings → Pages, configure **Deploy from a branch**, branch **m
 ## Limitações
 - O envio exige login em ambos os dispositivos; ainda não é checkout público.
 - Use dados fictícios exclusivamente. Não compartilhe senhas ou chaves secretas.
-- Esta fase não inclui mudança de status, pagamentos ou integrações do cardápio V0.3.
+- Esta fase inclui mudança de status com trilha de auditoria, mas não inclui pagamentos ou integrações do cardápio V0.3.
 - Sem comprovação de teste entre dispositivos, o funcionamento deve ser considerado **pendente de validação**.
 - Chave publishable é pública por design; as restrições efetivas são JWT, autorização da Edge Function, SQL e RLS.
 
@@ -26,3 +26,9 @@ Em GitHub → Settings → Pages, configure **Deploy from a branch**, branch **m
 Código-fonte original: branch `feature/pedidos-realtime-poc` do repositório `menu_lanchonete`.
 
 **Observação de implantação:** a Edge Function usa lista de origens permitidas; a nova origem de homologação precisa ser explicitamente admitida antes do teste.
+## Gestão de pedidos — V0.2
+- O painel permite **Recebido → Preparando → Pronto → Concluído** para pedidos de retirada. Pedidos de entrega passam por **Saiu para entrega** antes de concluídos.
+- Cancelamento permitido somente enquanto recebido ou preparando.
+- A API `delivery-demo` valida o JWT; a função SQL `demo_change_order_status` confere vínculo com a loja, transição permitida e status anterior esperado, sob bloqueio de linha, e grava o histórico na mesma transação.
+- O painel escuta eventos INSERT e UPDATE de `orders` e sincroniza novamente após uma ação.
+- **Pendente de homologação manual:** clique nos botões de um pedido fictício, acompanhe a atualização em outro dispositivo e confira o histórico. Não afirmar produção pronta antes desse teste.
