@@ -112,9 +112,22 @@ $("showCancelled").onchange=render;$("search").oninput=render;$("sort").onchange
 $("modalClose").onclick=()=>$("detailModal").classList.add("hide");
 $("detailModal").onclick=e=>{if(e.target===$("detailModal"))$("detailModal").classList.add("hide");};
 document.addEventListener("keydown",e=>{if(e.key==="Escape")$("detailModal").classList.add("hide");});
+$("testFulfillment").onchange=()=>{$("testDistanceBox").classList.toggle("hide",$("testFulfillment").value!=="delivery");$("testFeePreview").textContent="";};
+$("previewTestFee").onclick=async()=>{
+ const out=$("testFeePreview");out.textContent="Calculando...";
+ try{const km=Number($("testDistance").value);if(!Number.isFinite(km)||km<0||km>200)throw Error("Distância inválida.");
+ const {data,error}=await db.rpc("delivery_fee_preview",{p_establishment_id:store,p_distance_m:Math.round(km*1000)});
+ if(error)throw error;const q=data?.[0];out.textContent=q?.within_range?"Frete simulado: "+money(q.fee_cents):"Entrega indisponível: configure e habilite as taxas de entrega.";
+ }catch(e){out.textContent="Falha na prévia: "+e.message;}
+};
 $("submit").onclick=async()=>{
  const btn=$("submit");btn.disabled=true;
- try{const result=await api("submit",{establishment_id:store,client_request_id:crypto.randomUUID(),customer_name:$("customer").value,product_id:$("product").value,quantity:Number($("quantity").value)});
+ try{
+ const delivery=$("testFulfillment").value==="delivery",km=Number($("testDistance").value);
+ if(delivery&&(!Number.isFinite(km)||km<0||km>200))throw Error("Distância simulada inválida.");
+ const payload={establishment_id:store,client_request_id:crypto.randomUUID(),customer_name:$("customer").value,product_id:$("product").value,quantity:Number($("quantity").value)};
+ if(delivery)payload.distance_m=Math.round(km*1000);
+ const result=await api(delivery?"submit_delivery_test":"submit",payload);
  say("Pedido registrado! ID: "+result.order_id);await refresh();tab("panel");
  }catch(e){say("Falha ao enviar pedido: "+e.message,true);}finally{btn.disabled=false;}
 };
