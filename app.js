@@ -5,7 +5,7 @@ if(!key||!key.startsWith("sb_publishable_"))throw Error("Chave publishable neces
 localStorage.setItem("delivery_lab_publishable_key",key);
 const db=createClient(url,key),$=id=>document.getElementById(id);
 let store=null,channel=null,poll=null,orders=[],refreshing=false;
-const stages=[{id:"received",name:"Recebidos",color:"#dd9341"},{id:"preparing",name:"Preparando",color:"#4d87cb"},{id:"ready",name:"Prontos",color:"#41a17a"},{id:"out_for_delivery",name:"Em entrega",color:"#8470bb"},{id:"completed",name:"Finalizados",color:"#7d9184"}];
+const stages=[{id:"received",name:"Recebidos",color:"#d98224",bg:"#fff4e5",ticket:"#fff8ee",text:"#824308",border:"#f0c88e",actionText:"#fff"},{id:"preparing",name:"Preparando",color:"#3979c7",bg:"#eaf2ff",ticket:"#f2f7ff",text:"#1e4d88",border:"#b4cef2",actionText:"#fff"},{id:"ready",name:"Prontos",color:"#278a63",bg:"#e6f5ec",ticket:"#f0fbf5",text:"#176344",border:"#a6ddc0",actionText:"#fff"},{id:"out_for_delivery",name:"Em entrega",color:"#7456ac",bg:"#f0eafd",ticket:"#f7f3ff",text:"#503481",border:"#c9b8ed",actionText:"#fff"},{id:"completed",name:"Finalizados",color:"#657a6b",bg:"#edf2ee",ticket:"#f5f8f5",text:"#3f5847",border:"#c4d4c8",actionText:"#fff"},{id:"cancelled",name:"Cancelados",color:"#b64843",bg:"#fff0ee",ticket:"#fff7f6",text:"#8a2f2b",border:"#efbdb9",actionText:"#fff"}];
 const labels={received:"Recebido",preparing:"Preparando",ready:"Pronto",out_for_delivery:"Saiu para entrega",completed:"Concluído",cancelled:"Cancelado"};
 const money=n=>(n/100).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
 const say=(message,bad=false)=>{const n=$("notice");n.textContent=message;n.className=bad?"error":"ok";};
@@ -52,12 +52,13 @@ function render(){
  const search=$("search").value.trim().toLocaleLowerCase("pt-BR"),sort=$("sort").value;
  const visible=orders.filter(o=>!search||String(o.order_number).includes(search)||(o.customer_name||"").toLocaleLowerCase("pt-BR").includes(search)).sort((a,b)=>sort==="oldest"?new Date(a.created_at)-new Date(b.created_at):new Date(b.created_at)-new Date(a.created_at));
  for(const stage of stages){
-  const lane=el("section",undefined,"lane");lane.style.setProperty("--lane",stage.color);
+  if(stage.id==="cancelled"&&!$("showCancelled").checked)continue;
+  const lane=el("section",undefined,"lane");lane.style.setProperty("--lane",stage.color);lane.style.setProperty("--lane-bg",stage.bg);lane.style.setProperty("--ticket-bg",stage.ticket);lane.style.setProperty("--lane-text",stage.text);lane.style.setProperty("--lane-border",stage.border);lane.style.setProperty("--action-text",stage.actionText);
   const subset=visible.filter(o=>o.status===stage.id);
   const head=el("div",undefined,"lane-head");head.append(el("span",stage.name),el("span",String(subset.length),"count"));lane.append(head);
   if(!subset.length)lane.append(el("div","Nenhum pedido","empty"));
   for(const o of subset){
-   const card=el("article",undefined,"ticket");
+   const card=el("article",undefined,o.status==="received"?"ticket ticket-new":"ticket");
    const top=el("div",undefined,"ticket-top");top.append(el("strong","#"+o.order_number),el("span",new Date(o.created_at).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})));card.append(top);
    card.append(el("div",o.customer_name||"Cliente de teste","ticket-name"));
    card.append(el("p",o.fulfillment_type==="delivery"?"🛵 Entrega":"🛍 Retirada"));
@@ -107,7 +108,7 @@ function tab(name){
  $("tabPanel").classList.toggle("active",panel);$("tabSend").classList.toggle("active",!panel);if(panel)refresh();
 }
 $("tabPanel").onclick=()=>tab("panel");$("tabSend").onclick=()=>tab("send");
-$("search").oninput=render;$("sort").onchange=render;$("reload").onclick=refresh;
+$("showCancelled").onchange=render;$("search").oninput=render;$("sort").onchange=render;$("reload").onclick=refresh;
 $("modalClose").onclick=()=>$("detailModal").classList.add("hide");
 $("detailModal").onclick=e=>{if(e.target===$("detailModal"))$("detailModal").classList.add("hide");};
 document.addEventListener("keydown",e=>{if(e.key==="Escape")$("detailModal").classList.add("hide");});
