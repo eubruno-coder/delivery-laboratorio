@@ -5,7 +5,7 @@ if(!key||!key.startsWith("sb_publishable_"))throw Error("Chave publishable neces
 localStorage.setItem("delivery_lab_publishable_key",key);
 const db=createClient(url,key);
 const $=id=>document.getElementById(id);
-let store=null,channel=null,poll=null;
+let store=null,channel=null,poll=null;\nconst nextStatus={received:[["preparing","Iniciar preparo"],["cancelled","Cancelar"]],preparing:[["ready","Marcar pronto"],["cancelled","Cancelar"]],ready:[["completed","Entregue ao cliente"],["out_for_delivery","Saiu para entrega"]],out_for_delivery:[["completed","Concluir entrega"]]};\nconst labels={received:"Recebido",preparing:"Preparando",ready:"Pronto",out_for_delivery:"Saiu para entrega",completed:"Concluído",cancelled:"Cancelado"};
 const say=(message,bad=false)=>{const n=$("notice");n.textContent=message;n.className=bad?"error":"ok"};
 const money=n=>(n/100).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
 async function api(action,extra={}){
@@ -23,16 +23,36 @@ async function start(){
  if(error)throw error;
  $("product").replaceChildren(...products.map(p=>{const o=document.createElement("option");o.value=p.id;o.textContent=p.name+" — "+money(p.price_cents);return o}));
  await refresh();if(channel)await db.removeChannel(channel);
- channel=db.channel("orders-"+store).on("postgres_changes",{event:"INSERT",schema:"public",table:"orders",filter:"establishment_id=eq."+store},()=>{say("Novo pedido recebido!");refresh()}).subscribe(s=>$("connection").textContent=s==="SUBSCRIBED"?"Conectado":"Sincronizando");
+ channel=db.channel("orders-"+store).on("postgres_changes",{event:"*",schema:"public",table:"orders",filter:"establishment_id=eq."+store},()=>{say("Novo pedido recebido!");refresh()}).subscribe(s=>$("connection").textContent=s==="SUBSCRIBED"?"Conectado":"Sincronizando");
  clearInterval(poll);poll=setInterval(()=>{if(!$("panelArea").classList.contains("hide"))refresh()},10000);
 }
 async function refresh(){
  if(!store)return;
- const {data,error}=await db.from("orders").select("id,order_number,customer_name,status,total_cents,created_at,order_items(product_name,quantity)").eq("establishment_id",store).order("created_at",{ascending:false}).limit(30);
+ const {data,error}=await db.from("orders").select("id,order_number,customer_name,status,total_cents,created_at,fulfillment_type,order_items(product_name,quantity),order_status_history(old_status,new_status,changed_at)").eq("establishment_id",store).order("created_at",{ascending:false}).limit(30);
  if(error){say(error.message,true);return}
  const root=$("orders");root.replaceChildren();
  if(!data.length){root.textContent="Nenhum pedido ainda.";return}
- for(const o of data){const div=document.createElement("div");div.className="order";const title=document.createElement("strong");title.textContent="Pedido #"+o.order_number+" • "+o.customer_name;const detail=document.createElement("p");detail.textContent=o.order_items.map(i=>i.quantity+"× "+i.product_name).join(", ");const status=document.createElement("small");status.textContent="Status: "+o.status+" • "+money(o.total_cents)+" • "+new Date(o.created_at).toLocaleString("pt-BR");div.append(title,detail,status);root.append(div)}
+ for(const o of data){const div=document.createElement("div");div.className="order";const title=document.createElement("strong");title.textContent="Pedido #"+o.order_number+" • "+o.customer_name;const detail=document.createElement("p");detail.textContent=o.order_items.map(i=>i.quantity+"× "+i.product_name).join(", ");const status=document.createElement("small");status.textContent="Status: "+o.status+" • "+money(o.total_cents)+" • "+new Date(o.created_at).toLocaleString("pt-BR");div.append(title,detail,status);
+  const actions=document.createElement("div");actions.className="order-actions";
+  const options=(nextStatus[o.status]||[]).filter(([target])=>!(o.fulfillment_type==="pickup"&&target==="out_for_delivery")&&!(o.fulfillment_type==="delivery"&&target==="completed"&&o.status==="ready"));
+  for(const [target,label] of options){
+   const button=document.createElement("button");button.textContent=label;
+   if(target==="cancelled")button.className="secondary";
+   button.onclick=async()=>{
+    if(target==="cancelled"&&!confirm("Cancelar este pedido de teste?"))return;
+    button.disabled=true;
+    try{await api("change_status",{order_id:o.id,expected_status:o.status,new_status:target});say("Pedido #"+o.order_number+": "+labels[target]);await refresh()}
+    catch(e){say("Não foi possível mudar o status: "+e.message,true);await refresh()}
+    finally{button.disabled=false}
+   };
+   actions.append(button);
+  }
+  div.append(actions);
+  const history=document.createElement("details");const summary=document.createElement("summary");summary.textContent="Histórico de status";history.append(summary);
+  for(const h of (o.order_status_history||[]).sort((x,y)=>new Date(x.changed_at)-new Date(y.changed_at))){
+   const line=document.createElement("p");line.className="muted";line.textContent=new Date(h.changed_at).toLocaleString("pt-BR")+" — "+(labels[h.old_status]||"Criado")+" → "+(labels[h.new_status]||h.new_status);history.append(line);
+  }
+  div.append(history);root.append(div)}
 }
 async function auth(mode){try{const email=$("email").value.trim(),password=$("password").value;const {error}=mode==="signup"?await db.auth.signUp({email,password}):await db.auth.signInWithPassword({email,password});if(error)throw error;if(mode==="signup")say("Conta criada. Confirme seu e-mail se necessário.");await start()}catch(e){say(e.message,true)}}
 $("login").onclick=()=>auth("login");$("signup").onclick=()=>auth("signup");
