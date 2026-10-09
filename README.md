@@ -46,3 +46,12 @@ Código-fonte original: branch `feature/pedidos-realtime-poc` do repositório `m
 - Fundo, borda, texto e ações dos cards acompanham a paleta de cada etapa. Animação respeita a preferência de movimento reduzido do dispositivo.
 - Checkbox **Mostrar cancelados** exibe ou oculta a sexta coluna, sem apagar pedidos.
 - Homologação pendente: validar cores, movimento, alternância da coluna cancelados e transições em navegador real.
+
+## V0.4 — configurações de entrega (fase 1)
+- Aba **Taxas de entrega**: endereço de origem descritivo, taxa fixa, valor por km, limite de atendimento e habilitação por loja.
+- Configurações persistidas em `public.delivery_settings` com RLS; escrita somente para owner/manager do estabelecimento.
+- Prévia calculada no PostgreSQL por `public.delivery_fee_preview(uuid,integer)` em centavos, com arredondamento do adicional por quilômetro para cima.
+- **Atenção:** distância de teste informada manualmente não é confiável para cobrança. A função é apenas uma simulação autenticada; ainda falta integrar roteamento confiável no backend, geocodificação, persistência de orçamento e cálculo definitivo no checkout.
+- Nenhum rastreamento de entregadores ou clientes será implementado.
+- **Teste manual pendente:** entrar na conta, salvar valores, atualizar a página, confirmar persistência e testar distância dentro/fora do limite. Não utilizar dados pessoais reais.
+- Migração aplicada no projeto Supabase como `delivery_settings_and_internal_fee_preview_v04`. Exportar SQL e manter versionamento das migrações antes de produção.
